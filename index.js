@@ -14,6 +14,18 @@ function setDegree(deg) {
     return ((deg % 360) + 360) % 360;
 }
 function useGesture() {
+    const PRESS_DELAY = 128;
+    let isStarted = false;
+    let pressCount = 0;
+    let pressTimer = null;
+    let countTouches = 0;
+    let countMaxTouches = 0;
+    let initialTouches = null;
+    let currentTouches = null;
+    let initialTime = null;
+    let currentTime = null;
+    let moveX = 0;
+    let moveY = 0;
     const callbacks = {
         start: null,
         end: null,
@@ -23,27 +35,13 @@ function useGesture() {
         pinch: null,
         rotate: null,
     }
-
-    const PRESS_DELAY = 128;
-
-    let pressCount = 0;
-    let pressTimer = null;
-    let countTouches = 0;
-    let countMaxTouches = 0;
-    let initialTouches = null;
-    let currentTouches = null;
-    let initialTime = null;
-    let currentTime = null;
-
-    let moveX = 0;
-    let moveY = 0;
-
+    
     function setPressTimer() {
         if (pressTimer) {
             clearInterval(pressTimer);
         }
         pressCount = 0;
-        returnPress();
+        returnPress(); // count 0
         pressTimer = setInterval(returnPress, PRESS_DELAY);
     }
     function unsetPressTimer() {
@@ -53,6 +51,7 @@ function useGesture() {
         pressTimer = null;
     }
     function returnStart() {
+        isStarted = true;
         if (callbacks.start) {
             callbacks.start({
                 initialTime: initialTime,
@@ -61,6 +60,7 @@ function useGesture() {
         }
     }
     function returnEnd() {
+        isStarted = false;
         if (callbacks.end) {
             callbacks.end({
                 initialTime: initialTime,
@@ -79,6 +79,9 @@ function useGesture() {
                 moveY: moveY,
                 initialTime: initialTime,
                 currentTime: currentTime,
+                pressTime: pressCount*PRESS_DELAY,
+                pressCount: pressCount,
+                
             });
         }
     }
@@ -94,7 +97,8 @@ function useGesture() {
                 moveY: moveY,
                 initialTime: initialTime,
                 currentTime: currentTime,
-                count: pressCount++,
+                pressTime: pressCount*PRESS_DELAY,
+                pressCount: pressCount++
             });
         }
     }
@@ -168,13 +172,13 @@ function useGesture() {
                 return true;
             },
             onStartShouldSetPanResponderCapture: function(e, gestureState) {
-                return true;
+                return false;
             },
             onMoveShouldSetPanResponder: function(e, gestureState) {
-                return true;
+                return isStarted;
             },
             onMoveShouldSetPanResponderCapture: function(e, gestureState) {
-                return true;
+                return false;
             },
             onPanResponderGrant: function(e, gestureState) {
                 initialTime = new Date().getTime();
@@ -187,7 +191,8 @@ function useGesture() {
                 currentTouches = touches;
                 countTouches = touches.length;
                 countMaxTouches = touches.length;
-                currentTime = new Date().getTime();
+                initialTime = new Date().getTime();
+                currentTime = initialTime;
                 moveX = 0;
                 moveY = 0;
                 if (countTouches === 1) {
@@ -215,11 +220,12 @@ function useGesture() {
                 if (countMaxTouches === 1) {
                     returnTap();
                 }
+                if (countTouches === 1) {
+                    initialTime = currentTime;
+                }
                 initialTouches = touches;
                 currentTouches = touches;
                 countTouches = touches.length;
-                moveX = 0;
-                moveY = 0;
             },
             onPanResponderRelease: function(e, gestureState) {
                 currentTime = new Date().getTime();
